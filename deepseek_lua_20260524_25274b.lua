@@ -543,8 +543,7 @@ local function ConnectLixTech()
 end
 
 -- ============================================
--- SUPALEGIT V2 (OMINE REPLACEMENT) CONFIG & LOGIC
--- ============================================
+-- SUPATECH -- ============================================
 local SupaLegitConfig = {
     Enabled = false,
     DashDuration = 0.15,
@@ -1000,6 +999,92 @@ local function ConnectKittyTech()
 end
 
 -- ============================================
+-- ANTI SHAKE CONFIG & LOGIC (CHỐNG RUNG CAMERA)
+-- ============================================
+local AntiShakeConfig = {
+    Enabled = false,
+    Connection = nil,
+    OriginalCFrame = nil,
+}
+
+local function StopCameraShake()
+    -- Tìm và ngăn chặn các hiệu ứng rung camera
+    pcall(function()
+        -- Xóa CameraShake trong Camera
+        local cameraShake = Camera:FindFirstChild("CameraShake")
+        if cameraShake then
+            cameraShake:Destroy()
+        end
+        
+        -- Xóa các hiệu ứng rung từ các script khác
+        for _, v in ipairs(Camera:GetDescendants()) do
+            if v:IsA("LocalScript") or v:IsA("ModuleScript") then
+                if v.Name:lower():find("shake") or v.Name:lower():find("camera") then
+                    pcall(function() v:Disable() end)
+                end
+            end
+        end
+    end)
+end
+
+local function OnCharacterHit()
+    if not AntiShakeConfig.Enabled then return end
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    -- Lưu CFrame gốc của camera
+    AntiShakeConfig.OriginalCFrame = Camera.CFrame
+    
+    -- Ngăn chặn rung bằng cách liên tục giữ CFrame
+    task.spawn(function()
+        local startTime = tick()
+        local duration = 0.3 -- Thời gian chống rung sau khi bị hit
+        
+        while tick() - startTime < duration and AntiShakeConfig.Enabled do
+            if AntiShakeConfig.OriginalCFrame then
+                -- Khôi phục CFrame camera nếu bị thay đổi
+                pcall(function()
+                    if Camera.CFrame ~= AntiShakeConfig.OriginalCFrame then
+                        Camera.CFrame = AntiShakeConfig.OriginalCFrame
+                    end
+                end)
+            end
+            StopCameraShake()
+            task.wait()
+        end
+    end)
+end
+
+local function SetupAntiShake()
+    if AntiShakeConfig.Connection then
+        AntiShakeConfig.Connection:Disconnect()
+        AntiShakeConfig.Connection = nil
+    end
+    
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    
+    if humanoid then
+        -- Khi bị đánh trúng (humanoid bị giảm máu đột ngột)
+        local lastHealth = humanoid.Health
+        AntiShakeConfig.Connection = humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if AntiShakeConfig.Enabled then
+                local newHealth = humanoid.Health
+                if newHealth < lastHealth then
+                    -- Bị mất máu → bị hit → chống rung
+                    OnCharacterHit()
+                end
+                lastHealth = newHealth
+            end
+        end)
+    end
+end
+
+-- ============================================
 -- WINDUI WINDOW SETUP (with fallback)
 -- ============================================
 if not WindUI then
@@ -1057,7 +1142,7 @@ else
     })
     
     -- ============================================
-    -- INFO TAB (FIRST TAB)
+    -- INFO TAB (TAB)
     -- ============================================
     local InfoTab = Window:Tab({
         Title = "Info",
@@ -1358,12 +1443,12 @@ else
     })
     
     LixTab:Paragraph({
-        Title = "English:",
+        Title = "English",
         Content = "Turn off Shift Lock before using Lix Tech!",
     })
     
     LixTab:Paragraph({
-        Title = "Tiếng Việt:",
+        Title = "Tiếng Việt",
         Content = "Tắt Shiftlock trước khi dùng Lix Tech!",
     })
     
@@ -1404,21 +1489,21 @@ else
     })
     
     -- ============================================
-    -- SUPALEGIT V2 TAB (REPLACED OMINE)
+    -- SUPATECH TAB
     -- ============================================
     local SupaLegitTab = Window:Tab({
-        Title = "Supa Legit V2",
+        Title = "Supa Tech",
         Icon = "zap",
         IconColor = PINK,
     })
     
     SupaLegitTab:Section({
-        Title = "Supa Legit V2 Settings",
+        Title = "Supa Tech Settings",
         Icon = "settings",
     })
     
     SupaLegitTab:Toggle({
-        Title = "Enable Supa Legit",
+        Title = "Enable Supa Tech",
         Value = false,
         Icon = "power",
         Color = PINK,
@@ -1730,6 +1815,44 @@ else
     })
     
     -- ============================================
+    -- ANTI SHAKE TAB (MỚI)
+    -- ============================================
+    local AntiShakeTab = Window:Tab({
+        Title = "Anti Shake",
+        Icon = "shield",
+        IconColor = PINK,
+    })
+    
+    AntiShakeTab:Section({
+        Title = "Anti Shake Settings",
+        Icon = "settings",
+    })
+    
+    AntiShakeTab:Paragraph({
+        Title = "Thông Tin",
+        Content = "Chống rung camera khi bị đánh trúng. Giúp bạn giữ tầm nhìn ổn định.",
+    })
+    
+    AntiShakeTab:Toggle({
+        Title = "Enable Anti Shake",
+        Value = false,
+        Icon = "power",
+        Color = PINK,
+        Callback = function(state)
+            if AntiShakeConfig.Enabled == state then return end
+            AntiShakeConfig.Enabled = state
+            if state then
+                SetupAntiShake()
+            else
+                if AntiShakeConfig.Connection then
+                    AntiShakeConfig.Connection:Disconnect()
+                    AntiShakeConfig.Connection = nil
+                end
+            end
+        end
+    })
+    
+    -- ============================================
     -- STARTUP NOTIFICATION
     -- ============================================
     WindUI:Notify({
@@ -1784,6 +1907,11 @@ local function OnCharacterAdded(character)
     if KittyTechConfig.Enabled then
         task.wait(0.5)
         ConnectKittyTech()
+    end
+    
+    if AntiShakeConfig.Enabled then
+        task.wait(0.5)
+        SetupAntiShake()
     end
 end
 
