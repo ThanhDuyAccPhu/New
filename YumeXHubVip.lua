@@ -1624,56 +1624,6 @@ else
     })
     
     -- ============================================
-    -- ANTI-SHAKE SETTINGS
-    -- ============================================
-    MainTab:Section({
-        Title = "Anti-Shake",
-        Icon = "zap",
-    })
-    
-    MainTab:Toggle({
-        Title = "Enable Anti-Shake",
-        Value = false,
-        Icon = "activity",
-        Color = PINK,
-        Callback = function(state)
-            AntiShakeConfig.Enabled = state
-            if state then
-                StartAntiShake()
-            else
-                StopAntiShake()
-            end
-        end
-    })
-    
-    MainTab:Slider({
-        Title = "Anti-Shake Smoothness",
-        Value = {Min = 0.01, Max = 1, Default = 0.15},
-        Step = 0.01,
-        Callback = function(value)
-            AntiShakeConfig.Smoothness = value
-        end
-    })
-    
-    MainTab:Slider({
-        Title = "Anti-Shake Strength",
-        Value = {Min = 0, Max = 1, Default = 0.8},
-        Step = 0.05,
-        Callback = function(value)
-            AntiShakeConfig.Strength = value
-        end
-    })
-    
-    MainTab:Slider({
-        Title = "Anti-Shake Update Rate",
-        Value = {Min = 0.001, Max = 0.1, Default = 0.01},
-        Step = 0.001,
-        Callback = function(value)
-            AntiShakeConfig.UpdateRate = value
-        end
-    })
-    
-    -- ============================================
     -- TWISTED REVAMP TAB
     -- ============================================
     local TwistedTab = Window:Tab({
@@ -1845,6 +1795,63 @@ else
         Step = 5,
         Callback = function(value)
             KittyTechConfig.PingSetting = value
+        end
+    })
+    
+    
+    -- ============================================
+    -- ANTI-SHAKE TAB
+    -- ============================================
+    local AntiShakeTab = Window:Tab({
+        Title = "Anti-Shake",
+        Icon = "zap",
+        IconColor = PINK,
+    })
+    
+    AntiShakeTab:Section({
+        Title = "Anti-Shake Settings",
+        Icon = "settings",
+    })
+    
+    AntiShakeTab:Toggle({
+        Title = "Enable Anti-Shake",
+        Value = false,
+        Icon = "power",
+        Color = PINK,
+        Callback = function(state)
+            AntiShakeConfig.Enabled = state
+            if state then
+                StartAntiShake()
+            else
+                StopAntiShake()
+            end
+        end
+    })
+    
+    AntiShakeTab:Slider({
+        Title = "Smoothness",
+        Value = {Min = 0.01, Max = 1, Default = 0.15},
+        Step = 0.01,
+        Callback = function(value)
+            AntiShakeConfig.Smoothness = value
+        end
+    })
+    
+    AntiShakeTab:Slider({
+        Title = "Strength",
+        Value = {Min = 0, Max = 1, Default = 0.8},
+        Step = 0.05,
+        Callback = function(value)
+            AntiShakeConfig.Strength = value
+        end
+    })
+    
+    AntiShakeTab:Slider({
+        Title = "Update Rate",
+        Value = {Min = 0.001, Max = 0.1, Default = 0.01},
+        Step = 0.001,
+        Callback = function(value)
+            AntiShakeConfig.UpdateRate = value
         end
     })
     
