@@ -1919,5 +1919,4 @@ LocalPlayer.CharacterAdded:Connect(OnCharacterAdded)
 task.wait(0.5)
 if LocalPlayer.Character then
     OnCharacterAdded(LocalPlayer.Character)
-endded(LocalPlayer.Character)
-endnd
+end
