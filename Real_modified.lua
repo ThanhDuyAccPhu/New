@@ -2483,6 +2483,146 @@ end
 
 
 -- ============================================
+-- K1NG TECH CONFIG & LOGIC
+-- ============================================
+local K1ngTechConfig = {
+    Enabled = false,
+    DetectDelay = 0.25,
+    KingStart = 0,
+    KingWait = 0.15,
+    VeloPower = 60,
+    onCooldown = false,
+    kingBusy = false,
+    setupConnection = nil,
+    charConnection = nil,
+}
+
+local K1NG_UPPERCUT = {
+    ["rbxassetid://10503381238"] = true,
+    ["rbxassetid://13379003796"] = true,
+}
+local K1NG_DETECT_ANIMS = {
+    ["rbxassetid://10479335397"] = true,
+    ["rbxassetid://13380255751"] = true,
+}
+
+local K1ngDashRemote = nil
+pcall(function()
+    local rs = game:GetService("ReplicatedStorage")
+    local res = rs:WaitForChild("Resources", 5)
+    if res then
+        local bro = res:WaitForChild("Brother", 5)
+        if bro and bro:FindFirstChild("#Friend") and bro["#Friend"]:FindFirstChild("Communicate") then
+            K1ngDashRemote = bro["#Friend"].Communicate
+        end
+    end
+end)
+
+local function K1ngAutoPressQ()
+    pcall(function()
+        if K1ngDashRemote then
+            K1ngDashRemote:FireServer({[1] = {Dash = Enum.KeyCode.W, Key = Enum.KeyCode.Q, Goal = "KeyPress"}})
+        end
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+    end)
+end
+
+local function K1ngForceJump()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    root.AssemblyLinearVelocity = Vector3.new(
+        root.AssemblyLinearVelocity.X,
+        K1ngTechConfig.VeloPower,
+        root.AssemblyLinearVelocity.Z
+    )
+end
+
+local function K1ngCustomFlip()
+    local char = LocalPlayer.Character
+    if not char or not Camera then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum and root then
+        hum.AutoRotate = false
+        local flippedCFrame = root.CFrame * CFrame.Angles(0, math.rad(180), 0)
+        root.CFrame = flippedCFrame
+        Camera.CFrame = CFrame.new(
+            flippedCFrame.Position - flippedCFrame.LookVector * (Camera.CFrame.Position - flippedCFrame.Position).Magnitude + Vector3.new(0, 2),
+            flippedCFrame.Position
+        )
+    end
+end
+
+local function K1ngGetClosestEnemy(maxDist)
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local myRoot = char:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local live = Workspace:FindFirstChild("Live")
+    if not live then return nil end
+    local best, shortest = nil, maxDist
+    for _, model in ipairs(live:GetChildren()) do
+        if model ~= char then
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            local root = model:FindFirstChild("HumanoidRootPart")
+            if hum and hum.Health > 0 and root then
+                local dist = (root.Position - myRoot.Position).Magnitude
+                if dist < shortest then shortest, best = dist, root end
+            end
+        end
+    end
+    return best
+end
+
+local function K1ngSetupCharacter(char)
+    if K1ngTechConfig.setupConnection then
+        pcall(function() K1ngTechConfig.setupConnection:Disconnect() end)
+        K1ngTechConfig.setupConnection = nil
+    end
+    local hum = char:WaitForChild("Humanoid", 5)
+    if not hum then return end
+    K1ngTechConfig.setupConnection = hum.AnimationPlayed:Connect(function(track)
+        if not K1ngTechConfig.Enabled or not track.Animation then return end
+        local animId = track.Animation.AnimationId
+        if K1NG_DETECT_ANIMS[animId] then
+            if K1ngTechConfig.onCooldown then return end
+            K1ngTechConfig.onCooldown = true
+            task.delay(4, function() K1ngTechConfig.onCooldown = false end)
+        end
+        if K1NG_UPPERCUT[animId] and not K1ngTechConfig.onCooldown then
+            local triggerTime = tick()
+            task.delay(K1ngTechConfig.DetectDelay, function()
+                if K1ngTechConfig.kingBusy or not K1ngTechConfig.Enabled
+                    or K1ngTechConfig.onCooldown or tick() - triggerTime > 0.4 then return end
+                local enemy = K1ngGetClosestEnemy(14)
+                if not enemy then return end
+                K1ngTechConfig.kingBusy = true
+                task.delay(K1ngTechConfig.KingStart, function()
+                    K1ngAutoPressQ()
+                    K1ngForceJump()
+                    task.wait(K1ngTechConfig.KingWait)
+                    K1ngCustomFlip()
+                    task.wait(0.08)
+                    K1ngCustomFlip()
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        TweenService:Create(hrp,
+                            TweenInfo.new(0.12, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                            {CFrame = hrp.CFrame + (hrp.CFrame.LookVector * 5)}
+                        ):Play()
+                    end
+                end)
+                task.delay(0.8, function() K1ngTechConfig.kingBusy = false end)
+            end)
+        end
+    end)
+end
+
+-- ============================================
 -- WINDUI WINDOW SETUP
 -- ============================================
 if not WindUI then
@@ -2765,204 +2905,8 @@ else
     })
     
     -- ============================================
-    -- K1NG TECH TAB
+    -- K1NG TECH TAB (BEFORE LOOP DASH)
     -- ============================================
-    -- K1ng Tech logic (from k1ngMod.lua, converted to WindUI toggles)
-    local _K1ng_Players = game:GetService("Players")
-    local _K1ng_TweenService = game:GetService("TweenService")
-    local _K1ng_RunService = game:GetService("RunService")
-    local _K1ng_ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local _K1ng_VIM = game:GetService("VirtualInputManager")
-    local _K1ng_player = _K1ng_Players.LocalPlayer
-    local _K1ng_cam = workspace.CurrentCamera
-
-    local _K1ng_DashRemote = nil
-    pcall(function()
-        _K1ng_DashRemote = _K1ng_ReplicatedStorage:WaitForChild("Resources", 3)
-            :WaitForChild("Brother", 3)["#Friend"].Communicate
-    end)
-
-    _G.KingTechEnabled = false
-    local _K1ng_DETECT_DELAY = 0.25
-    local _K1ng_kingstart = 0
-    local _K1ng_kingwait = 0.15
-    local _K1ng_VELO_POWER = 60
-    local _K1ng_onCooldown = false
-    local _K1ng_kingBusy = false
-    local _K1ng_cooldownGui = nil
-    local _K1ng_UPPERCUT = {
-        ["rbxassetid://10503381238"] = true,
-        ["rbxassetid://13379003796"] = true
-    }
-    local _K1ng_DETECT_ANIMS = {
-        ["rbxassetid://10479335397"] = true,
-        ["rbxassetid://13380255751"] = true
-    }
-    local _K1ng_CharConn = nil
-    local _K1ng_CharConn2 = nil
-
-    local function _K1ng_getRoot(char)
-        return char:FindFirstChild("HumanoidRootPart")
-    end
-
-    local function _K1ng_getClosestEnemy(maxDist)
-        local char = _K1ng_player.Character
-        if not char then return nil end
-        local myRoot = _K1ng_getRoot(char)
-        if not myRoot then return nil end
-        local live = workspace:FindFirstChild("Live")
-        if not live then return nil end
-        local best, shortest = nil, maxDist
-        for _, model in ipairs(live:GetChildren()) do
-            if model ~= char then
-                local hum = model:FindFirstChildOfClass("Humanoid")
-                local root = _K1ng_getRoot(model)
-                if hum and hum.Health > 0 and root then
-                    local dist = (root.Position - myRoot.Position).Magnitude
-                    if dist < shortest then shortest, best = dist, root end
-                end
-            end
-        end
-        return best
-    end
-
-    local function _K1ng_autoPressQ()
-        if _K1ng_DashRemote then
-            pcall(function()
-                _K1ng_DashRemote:FireServer({[1] = {Dash = Enum.KeyCode.W, Key = Enum.KeyCode.Q, Goal = "KeyPress"}})
-            end)
-        end
-        _K1ng_VIM:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
-        task.wait(0.05)
-        _K1ng_VIM:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
-    end
-
-    local function _K1ng_forceJump()
-        local char = _K1ng_player.Character
-        if not char then return end
-        local root = _K1ng_getRoot(char)
-        if not root then return end
-        root.AssemblyLinearVelocity = Vector3.new(
-            root.AssemblyLinearVelocity.X,
-            _K1ng_VELO_POWER,
-            root.AssemblyLinearVelocity.Z
-        )
-    end
-
-    local function _K1ng_customFlip()
-        local char = _K1ng_player.Character
-        if not char or not _K1ng_cam then return end
-        local root = _K1ng_getRoot(char)
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum and root then
-            hum.AutoRotate = false
-            local flippedCFrame = root.CFrame * CFrame.Angles(0, math.rad(180), 0)
-            root.CFrame = flippedCFrame
-            _K1ng_cam.CFrame = CFrame.new(
-                flippedCFrame.Position - flippedCFrame.LookVector * (_K1ng_cam.CFrame.Position - flippedCFrame.Position).Magnitude + Vector3.new(0, 2),
-                flippedCFrame.Position
-            )
-        end
-    end
-
-    local function _K1ng_startCooldown(time)
-        local char = _K1ng_player.Character
-        if not char then return end
-        local root = _K1ng_getRoot(char)
-        if not root then return end
-        if _K1ng_cooldownGui then _K1ng_cooldownGui:Destroy() end
-        local bill = Instance.new("BillboardGui")
-        bill.Size = UDim2.new(0, 0, 0, 0)
-        bill.StudsOffset = Vector3.new(0, 4, 0)
-        bill.AlwaysOnTop = true
-        bill.Parent = root
-        local bg = Instance.new("Frame")
-        bg.Size = UDim2.new(1, 0, 1, 0)
-        bg.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        bg.BorderSizePixel = 0
-        bg.Parent = bill
-        local corner2 = Instance.new("UICorner")
-        corner2.CornerRadius = UDim.new(0, 6)
-        corner2.Parent = bg
-        local bar = Instance.new("Frame")
-        bar.Size = UDim2.new(1, 0, 1, 0)
-        bar.BorderSizePixel = 0
-        bar.Parent = bg
-        local barCorner = Instance.new("UICorner")
-        barCorner.CornerRadius = UDim.new(0, 6)
-        barCorner.Parent = bar
-        local gradient = Instance.new("UIGradient")
-        gradient.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
-        }
-        gradient.Parent = bar
-        _K1ng_cooldownGui = bill
-        _K1ng_TweenService:Create(bill, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(4, 0, 0.5, 0)}):Play()
-        local start = tick()
-        while tick() - start < time do
-            if bar and bar.Parent then
-                bar.Size = UDim2.new(1 - ((tick() - start) / time), 0, 1, 0)
-            end
-            _K1ng_RunService.RenderStepped:Wait()
-        end
-        local tween = _K1ng_TweenService:Create(bill, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 0, 0, 0)})
-        tween:Play()
-        tween.Completed:Wait()
-        if _K1ng_cooldownGui then
-            _K1ng_cooldownGui:Destroy()
-            _K1ng_cooldownGui = nil
-        end
-    end
-
-    local function _K1ng_setupCharacter(char)
-        local hum = char:WaitForChild("Humanoid")
-        hum.AnimationPlayed:Connect(function(track)
-            if not _G.KingTechEnabled or not track.Animation then return end
-            local animId = track.Animation.AnimationId
-            if _K1ng_DETECT_ANIMS[animId] then
-                if _K1ng_onCooldown then return end
-                _K1ng_onCooldown = true
-                task.delay(0.8, function() _K1ng_startCooldown(4) end)
-                task.delay(4, function() _K1ng_onCooldown = false end)
-            end
-            if _K1ng_UPPERCUT[animId] and not _K1ng_onCooldown then
-                local triggerTime = tick()
-                task.delay(_K1ng_DETECT_DELAY, function()
-                    if _K1ng_kingBusy or not _G.KingTechEnabled or _K1ng_onCooldown or tick() - triggerTime > 0.4 then return end
-                    local enemy = _K1ng_getClosestEnemy(14)
-                    if not enemy then return end
-                    _K1ng_kingBusy = true
-                    task.delay(_K1ng_kingstart, function()
-                        _K1ng_autoPressQ()
-                        _K1ng_forceJump()
-                        task.wait(_K1ng_kingwait)
-                        _K1ng_customFlip()
-                        task.wait(0.08)
-                        _K1ng_customFlip()
-                        local hrp = _K1ng_getRoot(char)
-                        if hrp then
-                            _K1ng_TweenService:Create(hrp, TweenInfo.new(0.12, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-                                CFrame = hrp.CFrame + (hrp.CFrame.LookVector * 5)
-                            }):Play()
-                        end
-                    end)
-                    task.delay(0.8, function() _K1ng_kingBusy = false end)
-                end)
-            end
-        end)
-    end
-
-    if _K1ng_player.Character then
-        task.spawn(function() _K1ng_setupCharacter(_K1ng_player.Character) end)
-    end
-    _K1ng_CharConn = _K1ng_player.CharacterAdded:Connect(function(char)
-        _G.KingTechEnabled = false
-        task.wait(0.5)
-        _K1ng_setupCharacter(char)
-    end)
-
     local K1ngTechTab = Window:Tab({
         Title = "K1ng Tech",
         Icon = "crown",
@@ -2975,8 +2919,8 @@ else
     })
 
     K1ngTechTab:Paragraph({
-        Title = "Thông Tin",
-        Content = "K1ng Tech - Tự động dash khi phát hiện animation. Tắt auto khi respawn.",
+        Title = "Thông Tin / Info",
+        Content = "K1ng Tech tự động dash + flip khi phát hiện animation Uppercut của đối thủ gần bạn.",
     })
 
     K1ngTechTab:Toggle({
@@ -2985,43 +2929,70 @@ else
         Icon = "power",
         Color = PINK,
         Callback = function(state)
-            _G.KingTechEnabled = state
+            K1ngTechConfig.Enabled = state
+            if state then
+                local char = LocalPlayer.Character
+                if char then
+                    K1ngSetupCharacter(char)
+                end
+                if not K1ngTechConfig.charConnection then
+                    K1ngTechConfig.charConnection = LocalPlayer.CharacterAdded:Connect(function(char)
+                        K1ngTechConfig.onCooldown = false
+                        K1ngTechConfig.kingBusy = false
+                        if K1ngTechConfig.Enabled then
+                            task.wait(0.5)
+                            K1ngSetupCharacter(char)
+                        end
+                    end)
+                end
+            else
+                if K1ngTechConfig.setupConnection then
+                    pcall(function() K1ngTechConfig.setupConnection:Disconnect() end)
+                    K1ngTechConfig.setupConnection = nil
+                end
+                if K1ngTechConfig.charConnection then
+                    K1ngTechConfig.charConnection:Disconnect()
+                    K1ngTechConfig.charConnection = nil
+                end
+                K1ngTechConfig.onCooldown = false
+                K1ngTechConfig.kingBusy = false
+            end
         end
     })
 
     K1ngTechTab:Slider({
-        Title = "Detect Delay",
+        Title = "Detect Delay (giây)",
         Value = {Min = 0.05, Max = 1, Default = 0.25},
         Step = 0.05,
         Callback = function(value)
-            _K1ng_DETECT_DELAY = value
+            K1ngTechConfig.DetectDelay = value
         end
     })
 
     K1ngTechTab:Slider({
-        Title = "Velocity Power (Jump Height)",
-        Value = {Min = 20, Max = 120, Default = 60},
-        Step = 5,
-        Callback = function(value)
-            _K1ng_VELO_POWER = value
-        end
-    })
-
-    K1ngTechTab:Slider({
-        Title = "King Wait (Flip Timing)",
-        Value = {Min = 0.05, Max = 0.5, Default = 0.15},
-        Step = 0.01,
-        Callback = function(value)
-            _K1ng_kingwait = value
-        end
-    })
-
-    K1ngTechTab:Slider({
-        Title = "King Start Delay",
+        Title = "King Start Delay (giây)",
         Value = {Min = 0, Max = 0.5, Default = 0},
         Step = 0.01,
         Callback = function(value)
-            _K1ng_kingstart = value
+            K1ngTechConfig.KingStart = value
+        end
+    })
+
+    K1ngTechTab:Slider({
+        Title = "King Wait (giây)",
+        Value = {Min = 0.05, Max = 0.5, Default = 0.15},
+        Step = 0.01,
+        Callback = function(value)
+            K1ngTechConfig.KingWait = value
+        end
+    })
+
+    K1ngTechTab:Slider({
+        Title = "Jump Power (VeloPower)",
+        Value = {Min = 20, Max = 120, Default = 60},
+        Step = 5,
+        Callback = function(value)
+            K1ngTechConfig.VeloPower = value
         end
     })
 
@@ -3807,135 +3778,6 @@ else
     })
     
     -- ============================================
-    -- MUSIC TAB
-    -- ============================================
-    local _Music_Sound = nil
-    local _Music_Volume = 0.5
-    local _Music_SoundService = game:GetService("SoundService")
-
-    local _MusicList = {
-        {Name = "Call Of Silence", Id = "123878926068911"},
-    }
-    local _Music_CurrentIndex = 1
-
-    local function _Music_GetSound()
-        if _Music_Sound and _Music_Sound.Parent then
-            return _Music_Sound
-        end
-        _Music_Sound = nil
-        return nil
-    end
-
-    local function _Music_CreateSound(id)
-        local existing = _Music_GetSound()
-        if existing then existing:Destroy() end
-        local s = Instance.new("Sound")
-        s.SoundId = "rbxassetid://" .. tostring(id)
-        s.Volume = _Music_Volume
-        s.Looped = true
-        s.Parent = _Music_SoundService
-        _Music_Sound = s
-        return s
-    end
-
-    local function _Music_Play()
-        local track = _MusicList[_Music_CurrentIndex]
-        if not track then return end
-        local s = _Music_CreateSound(track.Id)
-        s:Play()
-        WindUI:Notify({
-            Title = "🎵 Music",
-            Content = "Đang phát: " .. track.Name,
-            Icon = "music",
-            Duration = 3,
-        })
-    end
-
-    local function _Music_Stop()
-        local s = _Music_GetSound()
-        if s then
-            s:Stop()
-            s:Destroy()
-            _Music_Sound = nil
-        end
-        WindUI:Notify({
-            Title = "🎵 Music",
-            Content = "Đã tắt nhạc",
-            Icon = "volume-x",
-            Duration = 2,
-        })
-    end
-
-    local function _Music_VolumeUp()
-        _Music_Volume = math.min(_Music_Volume + 0.1, 1)
-        local s = _Music_GetSound()
-        if s then s.Volume = _Music_Volume end
-        WindUI:Notify({
-            Title = "🔊 Volume",
-            Content = string.format("Âm lượng: %d%%", math.floor(_Music_Volume * 100)),
-            Icon = "volume-2",
-            Duration = 2,
-        })
-    end
-
-    local MusicTab = Window:Tab({
-        Title = "Music",
-        Icon = "music",
-        IconColor = PINK,
-    })
-
-    MusicTab:Section({
-        Title = "🎵 Music Player",
-        Icon = "music",
-    })
-
-    MusicTab:Paragraph({
-        Title = "Call Of Silence",
-        Content = "ID: 123878926068911 | Nhạc nền thư giãn khi chơi game.",
-    })
-
-    MusicTab:Button({
-        Title = "▶ Bật Nhạc",
-        Description = "Phát: Call Of Silence",
-        Icon = "play",
-        Color = PINK,
-        Callback = function()
-            _Music_Play()
-        end
-    })
-
-    MusicTab:Button({
-        Title = "⏹ Tắt Nhạc",
-        Description = "Dừng nhạc đang phát",
-        Icon = "square",
-        Color = PINK,
-        Callback = function()
-            _Music_Stop()
-        end
-    })
-
-    MusicTab:Button({
-        Title = "🔊 Tăng Âm Lượng (+10%)",
-        Description = "Tăng âm lượng lên 10% (tối đa 100%)",
-        Icon = "volume-2",
-        Color = PINK,
-        Callback = function()
-            _Music_VolumeUp()
-        end
-    })
-
-    MusicTab:Slider({
-        Title = "Âm Lượng",
-        Value = {Min = 0, Max = 100, Default = 50},
-        Step = 5,
-        Callback = function(value)
-            _Music_Volume = value / 100
-            local s = _Music_GetSound()
-            if s then s.Volume = _Music_Volume end
-        end
-    })
-
-    -- ============================================
     -- STARTUP NOTIFICATION
     -- ============================================
     WindUI:Notify({
@@ -3951,6 +3793,11 @@ end
 -- ============================================
 local function OnCharacterAdded(character)
     task.wait(0.1)
+    
+    if K1ngTechConfig.Enabled then
+        task.wait(0.5)
+        K1ngSetupCharacter(character)
+    end
     
     if AutoKyotoConfig.Enabled then
         OnKyotoCharacterSpawn(character)
