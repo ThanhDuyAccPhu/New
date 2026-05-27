@@ -78,7 +78,7 @@ _n.ZIndex = 4
 _n.Parent = _h
 
 local _o = Instance.new("TextLabel")
-_o.Text = "🐕 King Kiba Tech"
+_o.Text = "KibaX Tech"
 _o.Font = Enum.Font.GothamBold
 _o.TextSize = 12
 _o.TextColor3 = Color3.fromRGB(190, 215, 255)
@@ -129,7 +129,7 @@ _t.Thickness = 1.2
 _t.Parent = _r
 
 local _u = Instance.new("TextLabel")
-_u.Text = "INACTIVE"
+_u.Text = "OFF"
 _u.Font = Enum.Font.GothamBold
 _u.TextSize = 9
 _u.TextColor3 = Color3.fromRGB(80, 100, 160)
@@ -181,7 +181,7 @@ local function _z(s)
     local _I = s and -1 or 1
     _c:Create(_u, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { TextTransparency = 1, Position = UDim2.new(0, _I * 10, 0, 0) }):Play()
     _8(0.1, function()
-        _u.Text = s and "ACTIVE" or "INACTIVE"
+        _u.Text = s and "ON" or "OFF"
         _u.Position = UDim2.new(0, -_I * 10, 0, 0)
         _c:Create(_u, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextTransparency = 0, Position = UDim2.new(0, 0, 0, 0) }):Play()
     end)
@@ -200,7 +200,7 @@ local _k2 = _h2:FindFirstChildOfClass("UIStroke")
 
 local _wm = Instance.new("TextLabel")
 _wm.Name = "Watermark"
-_wm.Text = "King_Techscript"
+_wm.Text = "KibaX Tech"
 _wm.Font = Enum.Font.GothamBold
 _wm.TextSize = 13
 _wm.TextColor3 = Color3.fromRGB(180, 210, 255)
@@ -750,4 +750,4 @@ _b.Heartbeat:Connect(function()
     end
 end)
 
-print("made your own lua script kiddo kid")
+print("Owner ThanhDuyHub")
